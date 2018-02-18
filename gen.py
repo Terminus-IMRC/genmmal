@@ -115,7 +115,7 @@ class ComponentBaseClass:
             conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
             print('\tcheck_mmal(mmal_component_enable(cp_%s));' % self.name)
             print('\tcheck_mmal(mmal_connection_create(' + \
-                    '&%s, %s->output[%d], %s->input[%d], %s));' % (
+                    '&%s, cp_%s->output[%d], cp_%s->input[%d], %s));' % (
                             conn, from_name, from_idx, to_name, to_idx,
                             'MMAL_CONNECTION_FLAG_TUNNELLING'))
             print('\tcheck_mmal(mmal_connection_enable(%s));' % conn)
@@ -142,7 +142,7 @@ class ImageComponentClass(ComponentBaseClass):
                 port['encoding'] = mmal_encoding_short_to_full(d0.pop(k0))
 
     def print_ordinal_image_port(self, port, port_name):
-        print('\tcheck_mmal(set_port_format(%s, %s, %d, %d));' % (
+        print('\tcheck_mmal(set_port_format(cp_%s, %s, %d, %d));' % (
                 port_name, port['encoding'], port['width'], port['height']))
 
     def setup_input_port(self, n, d0):
@@ -182,12 +182,13 @@ class ImageComponentClass(ComponentBaseClass):
                     'rect and fullscreen are exclusive')
         elif 'rect' in port.keys():
             rect = port['rect']
-            print('\tcheck_mmal(setup_port_displayregion_rect(' +
-                    '%s, %d, %d, %d, %d));' % (port_name, rect['x'], rect['y'],
+            print('\tcheck_mmal(set_port_displayregion_rect(' +
+                    'cp_%s, %d, %d, %d, %d));' % (port_name,
+                            rect['x'], rect['y'],
                             rect['width'], rect['height']))
         elif 'fullscreen' in port.keys():
-            print('\terr = setup_port_displayregion_fullscreen(%s, %d);' % (
-                    port_name, port['fullscreen']))
+            print('\tcheck_mmal(set_port_displayregion_fullscreen(' +
+                    'cp_%s, %d));' % (port_name, port['fullscreen']))
 
     def setup_output_port(self, n, d0):
         super().presetup_output_port(n, d0)
@@ -208,7 +209,8 @@ def do_in_port_bp(from_port, to_port, attr):
     do_next = False
     if attr in to_port.keys():
         if from_port[attr] != to_port[attr]:
-            raise RuntimeError('aa')
+            raise RuntimeError(attr + ': ' + \
+                    str(from_port[attr]) + ' vs. ' + str(to_port[attr]))
     else:
         to_port[attr] = from_port[attr]
         to_port['is_root'] = True
@@ -231,7 +233,10 @@ def forward_propagate_format(cls):
             to_port = to_component.input[from_port['connect_to']['idx']]
 
             if not 'encoding' in from_port.keys():
-                from_port['encoding'] = 'MMAL_ENCODING_OPAQUE'
+                if 'encoding' in to_port.keys():
+                    from_port['encoding'] = to_port['encoding']
+                else:
+                    from_port['encoding'] = 'MMAL_ENCODING_OPAQUE'
 
             do_in_port_bp(from_port, to_port, 'width')
             do_in_port_bp(from_port, to_port, 'height')
@@ -271,9 +276,6 @@ def forward_propagate_format(cls):
                 to_component = cls[port['connect_to']['name']]
                 to_port = to_component.input[port['connect_to']['idx']]
 
-                if not 'encoding' in port.keys():
-                    port['encoding'] = 'MMAL_ENCODING_OPAQUE'
-
                 # As for connection, size and encoding are the same on ports.
                 do_next |= do_in_port_bp(port, to_port, 'width')
                 do_next |= do_in_port_bp(port, to_port, 'height')
@@ -308,7 +310,10 @@ def back_propagate_format(cls):
         src_port = src_component.output[dst_port['connect_from']['idx']]
 
         if not 'encoding' in dst_port.keys():
-            dst_port['encoding'] = 'MMAL_ENCODING_OPAQUE'
+            if 'encoding' in src_port.keys():
+                dst_port['encoding'] = src_port['encoding']
+            else:
+                dst_port['encoding'] = 'MMAL_ENCODING_OPAQUE'
 
         do_in_port_bp(dst_port, src_port, 'width')
         do_in_port_bp(dst_port, src_port, 'height')
@@ -346,9 +351,6 @@ def back_propagate_format(cls):
 
                 src_component = cls[port['connect_from']['name']]
                 src_port = src_component.output[port['connect_from']['idx']]
-
-                if not 'encoding' in port.keys():
-                    port['encoding'] = 'MMAL_ENCODING_OPAQUE'
 
                 # As for connection, size and encoding are the same on ports.
                 do_next |= do_in_port_bp(port, src_port, 'width')
@@ -422,7 +424,7 @@ def main():
 
     propagate_format(cls)
 
-    print('#include "genmmal.h"')
+    print('#include "genmmal_internal.h"')
     print()
     for cl in cls.values():
         cl.print_decl(cls)
