@@ -3,6 +3,7 @@
 import sys
 import json
 
+
 component_info = {
         'vc.ril.camera': {
             'inputs': 0,
@@ -18,15 +19,15 @@ component_info = {
         },
 }
 
+
 def mmal_encoding_short_to_full(short):
     return 'MMAL_ENCODING_' + {
             'rgb24': 'RGB24',
             'rgba': 'RGBA',
             'i420': 'I420',
+            'opaque': 'OPAQUE',
     }[short.lower()]
 
-def print_code(s):
-    print('\t' + s)
 
 class ComponentBaseClass:
 
@@ -73,9 +74,6 @@ class ComponentBaseClass:
         if d != {}:
             raise AttributeError('Unknown keys: ' + str([*d.keys()]))
 
-    def preprint_input_port(self, port):
-        pass
-
     def presetup_output_port(self, n, d):
         max_outputs = component_info[self.component]['outputs']
         if n >= max_outputs:
@@ -87,8 +85,41 @@ class ComponentBaseClass:
         if d != {}:
             raise AttributeError('Unknown keys: ' + str([*d.keys()]))
 
-    def preprint_output_port(self, port):
-        pass
+    def print_decl(self, cls):
+        print('static MMAL_COMPONENT_T *cp_%s;' % self.name)
+        for idx in range(len(self.output)):
+            from_port = self.output[idx]
+            if len(from_port) == 0:
+                continue
+            to_component = cls[from_port['connect_to']['name']]
+            print('static MMAL_CONNECTION_T *conn_%s_%d_%s_%d;' % (
+                self.name, idx,
+                to_component.name, from_port['connect_to']['idx']))
+
+    def print_init(self):
+        print('\tcheck_mmal(mmal_component_create("%s", &cp_%s));' % (
+                self.component, self.name))
+        print('\tcheck_mmal(mmal_port_enable(cp_%s->control, cb_control));' % (
+                self.name))
+
+    def print_fin_setup(self, cls):
+        for idx in range(len(self.output)):
+            from_port = self.output[idx]
+            if len(from_port) == 0:
+                continue
+            to_component = cls[from_port['connect_to']['name']]
+            from_name = self.name
+            from_idx = idx
+            to_name = to_component.name
+            to_idx = from_port['connect_to']['idx']
+            conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
+            print('\tcheck_mmal(mmal_component_enable(cp_%s));' % self.name)
+            print('\tcheck_mmal(mmal_connection_create(' + \
+                    '&%s, %s->output[%d], %s->input[%d], %s));' % (
+                            conn, from_name, from_idx, to_name, to_idx,
+                            'MMAL_CONNECTION_FLAG_TUNNELLING'))
+            print('\tcheck_mmal(mmal_connection_enable(%s));' % conn)
+
 
 class ImageComponentClass(ComponentBaseClass):
 
@@ -111,7 +142,7 @@ class ImageComponentClass(ComponentBaseClass):
                 port['encoding'] = mmal_encoding_short_to_full(d0.pop(k0))
 
     def print_ordinal_image_port(self, port, port_name):
-        print_code('err = setup_port_format(%s, %s, %d, %d);' % (
+        print('\tcheck_mmal(set_port_format(%s, %s, %d, %d));' % (
                 port_name, port['encoding'], port['width'], port['height']))
 
     def setup_input_port(self, n, d0):
@@ -141,7 +172,6 @@ class ImageComponentClass(ComponentBaseClass):
 
     def print_input_port(self, n):
         port = self.input[n]
-        super().preprint_input_port(port)
 
         component_name = self.name
         port_name = '%s->input[%d]' % (component_name, n)
@@ -152,12 +182,12 @@ class ImageComponentClass(ComponentBaseClass):
                     'rect and fullscreen are exclusive')
         elif 'rect' in port.keys():
             rect = port['rect']
-            print_code('err = setup_port_displayregion_rect(' +
-                    '%s, %d, %d, %d, %d);' % (port_name, rect['x'], rect['y'],
+            print('\tcheck_mmal(setup_port_displayregion_rect(' +
+                    '%s, %d, %d, %d, %d));' % (port_name, rect['x'], rect['y'],
                             rect['width'], rect['height']))
         elif 'fullscreen' in port.keys():
-            print_code('err = setup_port_displayregion_fullscreen(%s, ' +
-                    '%d);' % (port_name, port['fullscreen']))
+            print('\terr = setup_port_displayregion_fullscreen(%s, %d);' % (
+                    port_name, port['fullscreen']))
 
     def setup_output_port(self, n, d0):
         super().presetup_output_port(n, d0)
@@ -167,7 +197,6 @@ class ImageComponentClass(ComponentBaseClass):
 
     def print_output_port(self, n):
         port = self.output[n]
-        super().preprint_output_port(port)
 
         component_name = self.name
         port_name = '%s->output[%d]' % (component_name, n)
@@ -224,6 +253,7 @@ def forward_propagate_format(cls):
                     do_next |= do_backpropagate(port, cl.output[0], 'encoding')
                 # Same size and encoding
                 else:
+                    # This loop is for splitter
                     for to_port in cl.output:
                         do_next |= do_in_port_bp(prot, to_port, 'width')
                         do_next |= do_in_port_bp(port, to_port, 'height')
@@ -375,7 +405,6 @@ def main():
 
     dct = json.load(sys.stdin)
 
-    cls = []
     cls = {}
     for name in dct.keys():
         data = dct[name]
@@ -393,6 +422,16 @@ def main():
 
     propagate_format(cls)
 
+    print('#include "genmmal.h"')
+    print()
+    for cl in cls.values():
+        cl.print_decl(cls)
+    print()
+    print('int genmmal_init(void)')
+    print('{')
+    for cl in cls.values():
+        cl.print_init()
+    print()
     for cl in cls.values():
         if hasattr(cl, 'input'):
             for i in range(len(cl.input)):
@@ -402,6 +441,12 @@ def main():
             for i in range(len(cl.output)):
                 if len(cl.output[i]) != 0:
                     cl.print_output_port(i)
+    print()
+    for cl in cls.values():
+        cl.print_fin_setup(cls)
+    print()
+    print('\treturn 0;')
+    print('}')
 
 if __name__ == '__main__':
     main()
