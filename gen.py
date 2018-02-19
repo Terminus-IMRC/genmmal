@@ -85,27 +85,34 @@ class ComponentBaseClass:
         if d != {}:
             raise AttributeError('Unknown keys: ' + str([*d.keys()]))
 
+    # ComponentBaseClass print functions
+
     def print_decl(self, cls):
-        print('static MMAL_COMPONENT_T *cp_%s;' % self.name)
+        print('static MMAL_COMPONENT_T *cp_%s = NULL;' % self.name)
         for idx in range(len(self.output)):
             from_port = self.output[idx]
             if len(from_port) == 0:
                 continue
             to_component = cls[from_port['connect_to']['name']]
-            print('static MMAL_CONNECTION_T *conn_%s_%d_%s_%d;' % (
+            print('static MMAL_CONNECTION_T *conn_%s_%d_%s_%d = NULL;' % (
                 self.name, idx,
                 to_component.name, from_port['connect_to']['idx']))
 
-    def print_init(self):
+    def print_init_component(self):
         print('\tcheck_mmal(mmal_component_create("%s", &cp_%s));' % (
                 self.component, self.name))
         print('\tcheck_mmal(mmal_port_enable(cp_%s->control, cb_control));' % (
                 self.name))
 
-    def print_fin_setup(self, cls):
+    def print_finl_component(self):
+        print('\tcheck_mmal(mmal_component_disable(cp_%s));' % self.name)
+        print('\tcheck_mmal(mmal_component_destroy(cp_%s));' % self.name)
+        print('\tcp_%s = NULL;' % self.name)
+
+    def print_init_connection(self, cls):
         for idx in range(len(self.output)):
             from_port = self.output[idx]
-            if len(from_port) == 0:
+            if not 'connect_to' in from_port:
                 continue
             to_component = cls[from_port['connect_to']['name']]
             from_name = self.name
@@ -119,6 +126,21 @@ class ComponentBaseClass:
                             conn, from_name, from_idx, to_name, to_idx,
                             'MMAL_CONNECTION_FLAG_TUNNELLING'))
             print('\tcheck_mmal(mmal_connection_enable(%s));' % conn)
+
+    def print_finl_connection(self, cls):
+        for idx in range(len(self.output)):
+            from_port = self.output[idx]
+            if not 'connect_to' in from_port:
+                continue
+            to_component = cls[from_port['connect_to']['name']]
+            from_name = self.name
+            from_idx = idx
+            to_name = to_component.name
+            to_idx = from_port['connect_to']['idx']
+            conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
+            print('\tcheck_mmal(mmal_connection_disable(%s));' % conn)
+            print('\tcheck_mmal(mmal_connection_destroy(%s));' % conn)
+            print('\t%s = NULL;' % conn)
 
 
 class ImageComponentClass(ComponentBaseClass):
@@ -140,10 +162,6 @@ class ImageComponentClass(ComponentBaseClass):
                 port['height'] = int(d0.pop(k0))
             elif k0 == 'encoding':
                 port['encoding'] = mmal_encoding_short_to_full(d0.pop(k0))
-
-    def print_ordinal_image_port(self, port, port_name):
-        print('\tcheck_mmal(set_port_format(cp_%s, %s, %d, %d));' % (
-                port_name, port['encoding'], port['width'], port['height']))
 
     def setup_input_port(self, n, d0):
         super().presetup_input_port(n, d0)
@@ -170,13 +188,25 @@ class ImageComponentClass(ComponentBaseClass):
                 port['fullscreen'] = int(d0.pop(k0))
         super().postsetup_input_port(n, d0)
 
-    def print_input_port(self, n):
+    def setup_output_port(self, n, d0):
+        super().presetup_output_port(n, d0)
+        port = self.output[n]
+        self.setup_ordinal_image_port(port, d0)
+        super().postsetup_output_port(n, d0)
+
+    # ImageComponentClass print functions
+
+    def print_init_ordinal_image_port(self, port, port_name):
+        print('\tcheck_mmal(set_port_format(cp_%s, %s, %d, %d));' % (
+                port_name, port['encoding'], port['width'], port['height']))
+
+    def print_init_input_port(self, n):
         port = self.input[n]
 
         component_name = self.name
         port_name = '%s->input[%d]' % (component_name, n)
 
-        self.print_ordinal_image_port(port, port_name)
+        self.print_init_ordinal_image_port(port, port_name)
         if 'rect' in port.keys() and 'fullscreen' in port.keys():
             raise KeyError('vc.ril.video_render: ' +
                     'rect and fullscreen are exclusive')
@@ -190,19 +220,13 @@ class ImageComponentClass(ComponentBaseClass):
             print('\tcheck_mmal(set_port_displayregion_fullscreen(' +
                     'cp_%s, %d));' % (port_name, port['fullscreen']))
 
-    def setup_output_port(self, n, d0):
-        super().presetup_output_port(n, d0)
-        port = self.output[n]
-        self.setup_ordinal_image_port(port, d0)
-        super().postsetup_output_port(n, d0)
-
-    def print_output_port(self, n):
+    def print_init_output_port(self, n):
         port = self.output[n]
 
         component_name = self.name
         port_name = '%s->output[%d]' % (component_name, n)
 
-        self.print_ordinal_image_port(port, port_name)
+        self.print_init_ordinal_image_port(port, port_name)
 
 
 def do_in_port_bp(from_port, to_port, attr):
@@ -432,20 +456,32 @@ def main():
     print('int genmmal_init(void)')
     print('{')
     for cl in cls.values():
-        cl.print_init()
+        cl.print_init_component()
     print()
     for cl in cls.values():
         if hasattr(cl, 'input'):
             for i in range(len(cl.input)):
                 if len(cl.input[i]) != 0:
-                    cl.print_input_port(i)
+                    cl.print_init_input_port(i)
         if hasattr(cl, 'output'):
             for i in range(len(cl.output)):
                 if len(cl.output[i]) != 0:
-                    cl.print_output_port(i)
+                    cl.print_init_output_port(i)
     print()
     for cl in cls.values():
-        cl.print_fin_setup(cls)
+        cl.print_init_connection(cls)
+    print()
+    print('\treturn 0;')
+    print('}')
+    print()
+
+    print('int genmmal_finl(void)')
+    print('{')
+    for cl in cls.values():
+        cl.print_finl_connection(cls)
+    print()
+    for cl in cls.values():
+        cl.print_finl_component()
     print()
     print('\treturn 0;')
     print('}')
