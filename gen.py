@@ -17,6 +17,10 @@ component_info = {
             'inputs': 1,
             'outputs': 1,
         },
+        'vc.ril.video_splitter': {
+            'inputs': 1,
+            'outputs': 4,
+        },
 }
 
 
@@ -120,7 +124,6 @@ class ComponentBaseClass:
             to_name = to_component.name
             to_idx = from_port['connect_to']['idx']
             conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
-            print('\tcheck_mmal(mmal_component_enable(cp_%s));' % self.name)
             print('\tcheck_mmal(mmal_connection_create(' + \
                     '&%s, cp_%s->output[%d], cp_%s->input[%d], %s));' % (
                             conn, from_name, from_idx, to_name, to_idx,
@@ -219,6 +222,7 @@ class ImageComponentClass(ComponentBaseClass):
         elif 'fullscreen' in port.keys():
             print('\tcheck_mmal(set_port_displayregion_fullscreen(' +
                     'cp_%s, %d));' % (port_name, port['fullscreen']))
+        print('\tcheck_mmal(mmal_component_enable(cp_%s));' % self.name)
 
     def print_init_output_port(self, n):
         port = self.output[n]
@@ -360,7 +364,7 @@ def back_propagate_format(cls):
                 # Same size and encoding
                 else:
                     dst_port = cl.input[0]
-                    do_next |= do_in_port_bp(prot, dst_port, 'width')
+                    do_next |= do_in_port_bp(port, dst_port, 'width')
                     do_next |= do_in_port_bp(port, dst_port, 'height')
                     do_next |= do_in_port_bp(port, dst_port, 'encoding')
 
