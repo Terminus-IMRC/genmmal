@@ -8,6 +8,7 @@ component_info = {
         'vc.ril.camera': {
             'inputs': 0,
             'outputs': 3,
+            'same_format_on_in_and_out': False,
         },
         'vc.ril.video_render': {
             'inputs': 1,
@@ -21,6 +22,10 @@ component_info = {
             'inputs': 1,
             'outputs': 4,
         },
+        'vc.ril.source': {
+            'inputs': 0,
+            'outputs': 1,
+        },
 }
 
 
@@ -32,6 +37,11 @@ def mmal_encoding_short_to_full(short):
             'opaque': 'OPAQUE',
     }[short.lower()]
 
+def mmal_video_source_pattern_short_to_full(short):
+    return 'MMAL_VIDEO_SOURCE_PATTERN_' + {
+            'random': 'RANDOM',
+            'noise': 'NOISE',
+    }[short.lower()]
 
 class ComponentBaseClass:
 
@@ -105,7 +115,7 @@ class ComponentBaseClass:
     def print_init_component(self):
         print('\tcheck_mmal(mmal_component_create("%s", &cp_%s));' % (
                 self.component, self.name))
-        print('\tcheck_mmal(mmal_port_enable(cp_%s->control, cb_control));' % (
+        print('\tcheck_mmal(mmal_port_enable(cp_%s->control, cb_nop));' % (
                 self.name))
 
     def print_finl_component(self):
@@ -195,6 +205,9 @@ class ImageComponentClass(ComponentBaseClass):
         super().presetup_output_port(n, d0)
         port = self.output[n]
         self.setup_ordinal_image_port(port, d0)
+        for k0 in list(d0.keys()):
+            if k0 == 'source_pattern' and self.component in ['vc.ril.source']:
+                port['source_pattern'] = d0.pop(k0)
         super().postsetup_output_port(n, d0)
 
     # ImageComponentClass print functions
@@ -231,6 +244,10 @@ class ImageComponentClass(ComponentBaseClass):
         port_name = '%s->output[%d]' % (component_name, n)
 
         self.print_init_ordinal_image_port(port, port_name)
+        if 'source_pattern' in port.keys():
+            source_pattern = mmal_video_source_pattern_short_to_full(port['source_pattern'])
+            print('\tcheck_mmal(set_port_video_source_pattern(' +
+                    'cp_%s, %s, 0xdeadbeaf));' % (port_name, source_pattern))
 
 
 def do_in_port_bp(from_port, to_port, attr):
