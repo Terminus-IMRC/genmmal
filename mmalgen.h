@@ -7,10 +7,10 @@
  * software. If not, contact the copyright holder above.
  */
 
-#ifndef GENMMAL_H_
-#define GENMMAL_H_
+#ifndef MMALGEN_H_
+#define MMALGEN_H_
 
-    int genmmal_init(void);
-    int genmmal_finl(void);
+    int mmalgen_init(void);
+    int mmalgen_finl(void);
 
-#endif /* GENMMAL_H_ */
+#endif /* MMALGEN_H_ */

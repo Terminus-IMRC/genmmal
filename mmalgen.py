@@ -490,12 +490,12 @@ def main():
 
     #propagate_format(cls)
 
-    print('#include "genmmal_internal.h"')
+    print('#include "mmalgen_internal.h"')
     print()
     for cl in cls.values():
         cl.print_decl(cls)
     print()
-    print('int genmmal_init(void)')
+    print('int mmalgen_init(void)')
     print('{')
     for cl in cls.values():
         cl.print_init_component()
@@ -517,7 +517,7 @@ def main():
     print('}')
     print()
 
-    print('int genmmal_finl(void)')
+    print('int mmalgen_finl(void)')
     print('{')
     for cl in cls.values():
         cl.print_finl_connection(cls)

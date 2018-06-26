@@ -7,8 +7,8 @@
  * software. If not, contact the copyright holder above.
  */
 
-#ifndef GENMMAL_INTERNAL_H_
-#define GENMMAL_INTERNAL_H_
+#ifndef MMALGEN_INTERNAL_H_
+#define MMALGEN_INTERNAL_H_
 
 #include <interface/mmal/mmal.h>
 #include <interface/mmal/util/mmal_connection.h>
@@ -80,7 +80,7 @@ static inline MMAL_STATUS_T set_port_video_source_pattern(MMAL_PORT_T *port,
 
 static void cb_nop(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
-#ifdef GENMMAL_DEBUG
+#ifdef MMALGEN_DEBUG
     fprintf(stderr, "%s is called by %s\n", __func__, port->name);
 #else
     (void) port;
@@ -154,4 +154,4 @@ static inline MMAL_STATUS_T connection_create(
 }
 #endif
 
-#endif /* GENMMAL_INTERNAL_H_ */
+#endif /* MMALGEN_INTERNAL_H_ */
