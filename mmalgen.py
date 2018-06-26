@@ -70,11 +70,10 @@ def mmal_video_source_pattern_short_to_full(short):
 
 def mmal_effect_short_to_full(short):
     d = {}
-    for k in ['none', 'negative', 'solarize', 'posterize', 'whiteboard',
-            'blackboard', 'sketch', 'denoise', 'embos', 'oilpaint', 'hatch',
-            'gpen', 'pastel', 'watercolour', 'film', 'blur', 'saturation',
-            'colourswap', 'washedout', 'posterise', 'colourpoint',
-            'colourbalance', 'carton']:
+    for k in ['none', 'negative', 'solarize', 'sketch', 'denoise', 'emboss',
+            'oilpaint', 'hatch', 'gpen', 'pastel', 'watercolour', 'film',
+            'blur', 'saturation', 'colourswap', 'washedout', 'posterise',
+            'colourpoint', 'colourbalance', 'cartoon']:
         d[k.lower()] = k.upper()
     return 'MMAL_PARAM_IMAGEFX_' + d[short.lower()]
 
