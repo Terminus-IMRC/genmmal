@@ -26,11 +26,25 @@ component_info = {
             'inputs': 0,
             'outputs': 1,
         },
+        'vc.ril.video_decode': {
+            'inputs': 1,
+            'outputs': 1,
+        },
+        'vc.ril.video_encode': {
+            'inputs': 1,
+            'outputs': 1,
+        },
+        'vc.ril.null_sink': {
+            'inputs': 3,
+            'outputs': 0,
+        },
 }
 
 
 def mmal_encoding_short_to_full(short):
     return 'MMAL_ENCODING_' + {
+            'h264': 'H264',
+            'mjpg': 'MJPG',
             'rgb24': 'RGB24',
             'rgba': 'RGBA',
             'i420': 'I420',
@@ -311,7 +325,7 @@ def forward_propagate_format(cls):
                 else:
                     # This loop is for splitter
                     for to_port in cl.output:
-                        do_next |= do_in_port_bp(prot, to_port, 'width')
+                        do_next |= do_in_port_bp(port, to_port, 'width')
                         do_next |= do_in_port_bp(port, to_port, 'height')
                         do_next |= do_in_port_bp(port, to_port, 'encoding')
 
@@ -473,7 +487,7 @@ def main():
                 raise IndexError('Unknown port name: ' + port)
         cls[name] = cl
 
-    propagate_format(cls)
+    #propagate_format(cls)
 
     print('#include "genmmal_internal.h"')
     print()
