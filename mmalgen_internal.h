@@ -42,36 +42,46 @@ static inline MMAL_STATUS_T set_port_format(MMAL_PORT_T *port,
 }
 
 static inline MMAL_STATUS_T set_port_displayregion_fullscreen(MMAL_PORT_T *port,
-        const _Bool is_fullscreen)
+        const _Bool is_fullscreen, const uint32_t layer)
 {
     MMAL_DISPLAYREGION_T displayregion = {
-        {MMAL_PARAMETER_DISPLAYREGION, sizeof(displayregion)},
         .fullscreen = !!is_fullscreen,
-        .set = MMAL_DISPLAY_SET_FULLSCREEN,
+        .layer = layer,
+        .set =   MMAL_DISPLAY_SET_FULLSCREEN
+               | MMAL_DISPLAY_SET_LAYER,
     };
-    return mmal_port_parameter_set(port, &displayregion.hdr);
+    return mmal_util_set_display_region(port, &displayregion);
 }
 
 static inline MMAL_STATUS_T set_port_displayregion_rect(MMAL_PORT_T *port,
-        const int x, const int y, const int width, const int height)
+        const int x, const int y, const int width, const int height,
+        const uint32_t layer)
 {
     MMAL_RECT_T rect = {
-        .x = x, .y = y, .width = width, .height = height,
+        .x = x,
+        .y = y,
+        .width = width,
+        .height = height,
     };
     MMAL_DISPLAYREGION_T displayregion = {
-        {MMAL_PARAMETER_DISPLAYREGION, sizeof(displayregion)},
         .dest_rect = rect,
         .fullscreen = 0,
-        .set = MMAL_DISPLAY_SET_DEST_RECT | MMAL_DISPLAY_SET_FULLSCREEN,
+        .layer = layer,
+        .set =   MMAL_DISPLAY_SET_DEST_RECT
+               | MMAL_DISPLAY_SET_FULLSCREEN
+               | MMAL_DISPLAY_SET_LAYER,
     };
-    return mmal_port_parameter_set(port, &displayregion.hdr);
+    return mmal_util_set_display_region(port, &displayregion);
 }
 
 static inline MMAL_STATUS_T set_port_video_source_pattern(MMAL_PORT_T *port,
         const MMAL_SOURCE_PATTERN_T pattern, const uint32_t param)
 {
     MMAL_PARAMETER_VIDEO_SOURCE_PATTERN_T source_pattern = {
-        {MMAL_PARAMETER_VIDEO_SOURCE_PATTERN, sizeof(source_pattern)},
+        .hdr = {
+            .id = MMAL_PARAMETER_VIDEO_SOURCE_PATTERN,
+            .size = sizeof(source_pattern)
+        },
         .pattern = pattern,
         .param = param,
     };

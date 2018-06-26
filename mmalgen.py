@@ -250,12 +250,12 @@ class ImageComponentClass(ComponentBaseClass):
         elif 'rect' in port.keys():
             rect = port['rect']
             print('\tcheck_mmal(set_port_displayregion_rect(' +
-                    'cp_%s, %d, %d, %d, %d));' % (port_name,
+                    'cp_%s, %d, %d, %d, %d, 30));' % (port_name,
                             rect['x'], rect['y'],
                             rect['width'], rect['height']))
         elif 'fullscreen' in port.keys():
             print('\tcheck_mmal(set_port_displayregion_fullscreen(' +
-                    'cp_%s, %d));' % (port_name, port['fullscreen']))
+                    'cp_%s, %d, 30));' % (port_name, port['fullscreen']))
         print('\tcheck_mmal(mmal_component_enable(cp_%s));' % self.name)
 
     def print_init_output_port(self, n):
