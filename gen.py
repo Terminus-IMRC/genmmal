@@ -39,8 +39,14 @@ def mmal_encoding_short_to_full(short):
 
 def mmal_video_source_pattern_short_to_full(short):
     return 'MMAL_VIDEO_SOURCE_PATTERN_' + {
-            'random': 'RANDOM',
+            'white': 'WHITE',
+            'black': 'BLACK',
+            'diagonal': 'DIAGONAL',
             'noise': 'NOISE',
+            'random': 'RANDOM',
+            'colour': 'COLOUR',
+            'blocks': 'BLOCKS',
+            'swirly': 'SWIRLY',
     }[short.lower()]
 
 class ComponentBaseClass:
