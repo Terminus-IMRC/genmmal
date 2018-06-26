@@ -39,6 +39,10 @@ component_info = {
             'inputs': 3,
             'outputs': 0,
         },
+        'vc.ril.image_fx': {
+            'inputs': 1,
+            'outputs': 1,
+        },
 }
 
 
@@ -63,6 +67,17 @@ def mmal_video_source_pattern_short_to_full(short):
             'blocks': 'BLOCKS',
             'swirly': 'SWIRLY',
     }[short.lower()]
+
+def mmal_effect_short_to_full(short):
+    d = {}
+    for k in ['none', 'negative', 'solarize', 'posterize', 'whiteboard',
+            'blackboard', 'sketch', 'denoise', 'embos', 'oilpaint', 'hatch',
+            'gpen', 'pastel', 'watercolour', 'film', 'blur', 'saturation',
+            'colourswap', 'washedout', 'posterise', 'colourpoint',
+            'colourbalance', 'carton']:
+        d[k.lower()] = k.upper()
+    return 'MMAL_PARAM_IMAGEFX_' + d[short.lower()]
+
 
 class ComponentBaseClass:
 
@@ -229,6 +244,8 @@ class ImageComponentClass(ComponentBaseClass):
         for k0 in list(d0.keys()):
             if k0 == 'source_pattern' and self.component in ['vc.ril.source']:
                 port['source_pattern'] = d0.pop(k0)
+            elif k0 == 'effect' and self.component in ['vc.ril.image_fx']:
+                port['effect'] = d0.pop(k0)
         super().postsetup_output_port(n, d0)
 
     # ImageComponentClass print functions
@@ -269,6 +286,10 @@ class ImageComponentClass(ComponentBaseClass):
             source_pattern = mmal_video_source_pattern_short_to_full(port['source_pattern'])
             print('\tcheck_mmal(set_port_video_source_pattern(' +
                     'cp_%s, %s, 0xdeadbeaf));' % (port_name, source_pattern))
+        elif 'effect' in port.keys():
+            effect = mmal_effect_short_to_full(port['effect'])
+            print('\tcheck_mmal(set_port_effect(cp_%s, %s));'
+                    % (port_name, effect))
 
 
 def do_in_port_bp(from_port, to_port, attr):

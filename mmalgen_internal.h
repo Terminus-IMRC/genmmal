@@ -88,6 +88,19 @@ static inline MMAL_STATUS_T set_port_video_source_pattern(MMAL_PORT_T *port,
     return mmal_port_parameter_set(port, &source_pattern.hdr);
 }
 
+static inline MMAL_STATUS_T set_port_effect(MMAL_PORT_T *port,
+        const MMAL_PARAM_IMAGEFX_T effect)
+{
+    MMAL_PARAMETER_IMAGEFX_T imagefx = {
+        .hdr = {
+            .id = MMAL_PARAMETER_IMAGE_EFFECT,
+            .size = sizeof(imagefx),
+        },
+        .value = effect,
+    };
+    return mmal_port_parameter_set(port, &imagefx.hdr);
+}
+
 static void cb_nop(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
 #ifdef MMALGEN_DEBUG
