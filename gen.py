@@ -2,6 +2,7 @@
 
 import sys
 import json
+from collections import OrderedDict
 
 
 component_info = {
@@ -470,9 +471,9 @@ def propagate_format(cls):
 
 def main():
 
-    dct = json.load(sys.stdin)
+    dct = json.load(sys.stdin, object_pairs_hook=OrderedDict)
 
-    cls = {}
+    cls = OrderedDict()
     for name in dct.keys():
         data = dct[name]
         cl = ImageComponentClass(name, data.pop('component'))
