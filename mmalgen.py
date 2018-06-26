@@ -45,7 +45,7 @@ component_info = {
 def mmal_encoding_short_to_full(short):
     return 'MMAL_ENCODING_' + {
             'h264': 'H264',
-            'mjpg': 'MJPG',
+            'mjpg': 'MJPEG',
             'rgb24': 'RGB24',
             'rgba': 'RGBA',
             'i420': 'I420',
