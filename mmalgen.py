@@ -158,7 +158,7 @@ class ComponentBaseClass:
         print('\tcheck_mmal(mmal_component_destroy(cp_%s));' % self.name)
         print('\tcp_%s = NULL;' % self.name)
 
-    def print_init_connection(self, cls):
+    def print_connection_create(self, cls):
         for idx in range(len(self.output)):
             from_port = self.output[idx]
             if not 'connect_to' in from_port:
@@ -173,9 +173,21 @@ class ComponentBaseClass:
                     '&%s, cp_%s->output[%d], cp_%s->input[%d], %s));' % (
                             conn, from_name, from_idx, to_name, to_idx,
                             'MMAL_CONNECTION_FLAG_TUNNELLING'))
+
+    def print_connection_enable(self, cls):
+        for idx in range(len(self.output)):
+            from_port = self.output[idx]
+            if not 'connect_to' in from_port:
+                continue
+            to_component = cls[from_port['connect_to']['name']]
+            from_name = self.name
+            from_idx = idx
+            to_name = to_component.name
+            to_idx = from_port['connect_to']['idx']
+            conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
             print('\tcheck_mmal(mmal_connection_enable(%s));' % conn)
 
-    def print_finl_connection(self, cls):
+    def print_connection_disable(self, cls):
         for idx in range(len(self.output)):
             from_port = self.output[idx]
             if not 'connect_to' in from_port:
@@ -187,6 +199,18 @@ class ComponentBaseClass:
             to_idx = from_port['connect_to']['idx']
             conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
             print('\tcheck_mmal(mmal_connection_disable(%s));' % conn)
+
+    def print_connection_destroy(self, cls):
+        for idx in range(len(self.output)):
+            from_port = self.output[idx]
+            if not 'connect_to' in from_port:
+                continue
+            to_component = cls[from_port['connect_to']['name']]
+            from_name = self.name
+            from_idx = idx
+            to_name = to_component.name
+            to_idx = from_port['connect_to']['idx']
+            conn = 'conn_%s_%d_%s_%d' % (from_name, from_idx, to_name, to_idx)
             print('\tcheck_mmal(mmal_connection_destroy(%s));' % conn)
             print('\t%s = NULL;' % conn)
 
@@ -531,7 +555,10 @@ def main():
                     cl.print_init_output_port(i)
     print()
     for cl in cls.values():
-        cl.print_init_connection(cls)
+        cl.print_connection_create(cls)
+    print()
+    for cl in cls.values():
+        cl.print_connection_enable(cls)
     print()
     print('\treturn 0;')
     print('}')
@@ -539,8 +566,11 @@ def main():
 
     print('int mmalgen_finl(void)')
     print('{')
-    for cl in cls.values():
-        cl.print_finl_connection(cls)
+    for cl in reversed(cls.values()):
+        cl.print_connection_disable(cls)
+    print()
+    for cl in reversed(cls.values()):
+        cl.print_connection_destroy(cls)
     print()
     for cl in cls.values():
         cl.print_finl_component()
